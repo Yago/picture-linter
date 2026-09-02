@@ -10,7 +10,7 @@ import {
   smallerCandidateRungs,
   urlFamily,
 } from '../src/domain/resource.js';
-import { toAgentDocument, toMarkdown, toAgentPrompt, AGENT_PROMPT_PREAMBLE } from '../src/agent/document.js';
+import { toAgentDocument, toMarkdown, toAgentPrompt, AGENT_PROMPT_PREAMBLE, documentForCopy } from '../src/agent/document.js';
 
 function result(overrides = {}) {
   const subject = {
@@ -259,6 +259,28 @@ test('Agent prompt wraps the markdown document with the preamble', () => {
   assert.match(prompt, /`Action:` lines are the tickets/);
   assert.ok(prompt.includes(md.trim()));
   assert.equal(prompt.includes(JSON.stringify(doc)), false);
+});
+
+test('documentForCopy merges Groups across pages and replaces the same URL', () => {
+  const home = toAgentDocument('https://example.com/', [result()], { title: 'Home', viewport: { width: 1440, height: 900 }, dpr: 2 });
+  const article = toAgentDocument('https://example.com/news', [result({
+    subject: { resource: 'https://example.com/styles/lhc_avif_4_1_1920x480/public/other.avif' },
+  })], { title: 'News', viewport: { width: 1440, height: 900 }, dpr: 2 });
+  const merged = documentForCopy([{ url: home.scan.page, title: 'Home', doc: home }], article);
+  assert.equal(merged.scan.pages.length, 2);
+  assert.equal(merged.groups.length, 1);
+  assert.equal(merged.groups[0].instances, 2);
+  assert.deepEqual(merged.groups[0].pages, ['https://example.com/', 'https://example.com/news']);
+  assert.match(toMarkdown(merged), /Pages: https:\/\/example.com\/, https:\/\/example.com\/news/);
+
+  const homeAgain = toAgentDocument('https://example.com/', [result()], { title: 'Home 2' });
+  const replaced = documentForCopy(
+    [{ url: home.scan.page, title: 'Home', doc: home }, { url: article.scan.page, title: 'News', doc: article }],
+    homeAgain,
+  );
+  assert.equal(replaced.scan.pages.length, 2);
+  assert.equal(replaced.scan.pages.filter((page) => page.url === 'https://example.com/').length, 1);
+  assert.equal(replaced.scan.pages.find((page) => page.url === 'https://example.com/').title, 'Home 2');
 });
 
 test('groupKey differs when hiding class differs', () => {

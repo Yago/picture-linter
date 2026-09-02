@@ -1,10 +1,11 @@
 import { collectSubjects } from './collect/subjects.js';
 import { measureLayout } from './measure/clone.js';
 import { lintSubject } from './lint/run.js';
-import { toAgentDocument, toMarkdown, toAgentPrompt } from './agent/document.js';
+import { toAgentDocument, toMarkdown, toAgentPrompt, documentForCopy } from './agent/document.js';
 import { mountHost, teardown } from './ui/host.js';
 import { renderOverlays, highlight } from './ui/overlay.js';
 import { renderProgress, renderReport } from './ui/panel.js';
+import { addToReport, fetchReport, removeFromReport, resetReport } from './report/client.js';
 
 let running = false;
 let abortPass = null;
@@ -50,17 +51,74 @@ export async function startPass() {
 
     renderProgress(ui.panel, 0.96, 'Linting');
     const results = subjects.map((subject) => lintSubject(subject, dimensions[subject.id] ?? {}));
-    const doc = toAgentDocument(location.href, results, {
+    const currentDoc = toAgentDocument(location.href, results, {
+      title: document.title,
       viewport: { width: window.innerWidth, height: window.innerHeight },
       dpr: window.devicePixelRatio,
     });
-    const copies = { prompt: toAgentPrompt(toMarkdown(doc)), json: JSON.stringify(doc, null, 2) };
+    let reportPages = (await fetchReport()).pages ?? [];
+    let addedThisPass = false;
     let activeId = null;
+    let filter = 'all';
+
+    const copiesOf = (pages) => {
+      const merged = documentForCopy(pages, currentDoc);
+      return { prompt: toAgentPrompt(toMarkdown(merged)) };
+    };
+
+    const membershipOf = (pages) => {
+      const inReport = pages.some((page) => page.url === location.href);
+      if (!inReport) return 'add';
+      if (addedThisPass) return 'in';
+      return 'update';
+    };
+
+    const paint = () => {
+      if (aborted) return;
+      renderReport(ui.panel, {
+        results,
+        copies: copiesOf(reportPages),
+        onSelect: select,
+        onFilter: (next) => {
+          filter = next;
+          paint();
+        },
+        activeId,
+        filter,
+        report: {
+          pages: reportPages,
+          membership: membershipOf(reportPages),
+          onAdd: async () => {
+            const next = await addToReport({
+              url: location.href,
+              title: document.title,
+              doc: currentDoc,
+            });
+            reportPages = next.pages ?? [];
+            addedThisPass = true;
+            paint();
+          },
+          onReset: async () => {
+            const next = await resetReport();
+            reportPages = next.pages ?? [];
+            addedThisPass = false;
+            paint();
+          },
+          onRemove: async (url) => {
+            const next = await removeFromReport(url);
+            reportPages = next.pages ?? [];
+            if (url === location.href) addedThisPass = false;
+            paint();
+          },
+        },
+      });
+    };
+
     const select = (id) => {
       activeId = id;
       highlight(ui.layer, id);
       resultById(results, id)?.subject.element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-      renderReport(ui.panel, results, copies, select, activeId, 'all');
+      paint();
     };
 
     const place = renderOverlays(ui.layer, results, select);
@@ -72,7 +130,7 @@ export async function startPass() {
       { target: window, type: 'resize', fn: onReflow, options: undefined },
     );
 
-    renderReport(ui.panel, results, copies, select, activeId, 'all');
+    paint();
     abortPass = close;
   } catch (error) {
     if (!aborted) renderProgress(ui.panel, 1, error instanceof Error ? error.message : String(error));

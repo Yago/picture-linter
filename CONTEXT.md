@@ -41,7 +41,7 @@ Device pixel ratio, evaluated theoretically at 1× / 2× / 3× during a Pass. Ov
 _Avoid_: Screen type, retina
 
 **Phantom**:
-A Subject that triggered a network request but has no painted box (not rendered, zero size, or fully clipped from painting). Listed in the Report, never given an Overlay.
+A Subject that triggered a network request but has no painted box (not rendered, zero size, or fully clipped from painting). Listed in the panel, never given an Overlay.
 _Avoid_: Hidden image, display none, unloaded (the opposite: never requested)
 
 **Sprite**:
@@ -57,31 +57,27 @@ The worst Finding severity on a Subject across the whole Pass (red > orange > sk
 _Avoid_: Score, health, global Fit, “correctly implemented” (that phrase is the Verdict)
 
 **Overlay**:
-A snapshot traffic-light on a painted Subject showing its Verdict. It does not update on resize; a new Pass is required. Clicking it opens that Subject in the Report.
+A snapshot traffic-light on a painted Subject showing its Verdict. It does not update on resize; a new Pass is required. Clicking it opens that Subject in the panel.
 _Avoid_: Hoverlet, badge, highlight, Fit (the Overlay is not Fit)
 
 **Pass**:
-One on-demand inspection of the current page: Subjects, Viewport grid, Findings, snapshot Overlays, and a Report. The toolbar starts a Pass; it does not run on navigation.
+One on-demand inspection of the current page: Subjects, Viewport grid, Findings, snapshot Overlays, and the panel. The toolbar starts a Pass; it does not run on navigation.
 _Avoid_: scan, run, analysis (alone), crawl
 
 **Report**:
-The human-readable result of a Pass, in a floating page panel: per-Subject findings aggregated into viewport ranges, plus Phantoms, plus export of the Agent prompt and the Agent document JSON.
-_Avoid_: Lint output, analysis (alone)
+The tab-scoped set of Passes the user chose to keep (Add to report). Groups merge across those pages into one Agent document. Navigating in the tab does not add a page; closing the tab discards the Report. Reset empties the Report and leaves the current Pass in the panel.
+_Avoid_: survey, crawl, site audit, session, panel (the floating UI is not the Report)
 
 **Agent document**:
-JSON as source of truth, Markdown generated from it. Groups by root cause (not DOM node). Each group is identity, resource facts, numeric Fit, and only valid typed actions. It is the report inside an Agent prompt, not the prompt itself.
+JSON as source of truth, Markdown generated from it. Groups by root cause (not DOM node). Each group is identity, resource facts, numeric Fit, only valid typed actions, and the pages where it appeared. Produced from the Report. Wrapped by the Agent prompt.
 _Avoid_: ARD, ADR, dump, log, agent brief, prompt (the prompt wraps this)
 
 **Agent prompt**:
-The clipboard payload for a development agent: a fixed English preamble plus the Markdown Agent document. The agent can execute it without a human explaining Picture Linter.
-_Avoid_: brief, agent brief, copypasta, system prompt
-
-**Survey**:
-An ordered set of Passes the user chose to keep (Add to survey) in the current tab. Groups merge across those pages into one Agent document. Navigating in that tab does not add a page; closing the tab discards the Survey. A Pass that was not added is discarded with the overlay.
-_Avoid_: crawl, site audit, session, profile-wide survey, rapport (the Report is still one page’s panel)
+The clipboard payload for a development agent: a fixed English preamble plus the Markdown Agent document. Copied from the panel only once the current page is in the Report.
+_Avoid_: brief, agent brief, copypasta, system prompt, JSON export
 
 **Viewport grid**:
-The fixed dense widths used to measure Layout width in a clone iframe (300–3000px, step 20, two aspect ratios). The Report and Agent document expose aggregated ranges, not every step.
+The fixed dense widths used to measure Layout width in a clone iframe (300–3000px, step 20, two aspect ratios). The Agent document exposes aggregated ranges, not every step.
 _Avoid_: Breakpoints (those belong to CSS), screen sizes, sampling
 
 **Placeholder**:

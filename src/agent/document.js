@@ -1,14 +1,25 @@
 import { groupKey, resourcePath, urlFamily, declaredMaxWidth } from '../domain/resource.js';
-import { worstSeverity } from '../domain/severity.js';
+import { worstSeverity, isWorse } from '../domain/severity.js';
 import { GRID } from '../measure/grid.js';
 
 export function toAgentDocument(pageUrl, results, scan = {}) {
   const groups = groupResults(results);
-  const tickets = groups.filter(isTicket);
+  const tickets = groups.filter(isTicket).map((group) => ({
+    ...group,
+    pages: [pageUrl],
+  }));
+  const generatedAt = new Date().toISOString();
   return {
     scan: {
       page: pageUrl,
-      generatedAt: new Date().toISOString(),
+      pages: [{
+        url: pageUrl,
+        title: scan.title ?? '',
+        generatedAt,
+        viewport: scan.viewport ?? null,
+        dpr: scan.dpr ?? null,
+      }],
+      generatedAt,
       viewport: scan.viewport ?? null,
       dpr: scan.dpr ?? null,
       grid: {
@@ -18,19 +29,70 @@ export function toAgentDocument(pageUrl, results, scan = {}) {
         densities: GRID.densities,
       },
     },
-    summary: {
-      uniqueIssues: tickets.filter((g) => g.verdict !== 'green' && g.verdict !== 'skip').length,
-      instances: tickets.reduce((sum, group) => sum + group.instances, 0),
-      wastedBytes: tickets.reduce((sum, group) => sum + group.wastedBytes, 0),
-      placeholders: groups.filter((g) => g.fileKind === 'placeholder').length,
-    },
+    summary: summarize(tickets, groups),
     groups: tickets,
   };
 }
 
+export function mergeAgentDocuments(docs) {
+  const live = docs.filter(Boolean);
+  if (!live.length) return toAgentDocument('', [], {});
+  const pages = [];
+  const seen = new Set();
+  for (const doc of live) {
+    for (const page of pageEntries(doc)) {
+      if (!page.url || seen.has(page.url)) continue;
+      seen.add(page.url);
+      pages.push(page);
+    }
+  }
+  const buckets = new Map();
+  for (const doc of live) {
+    const fallback = pageEntries(doc)[0]?.url || doc.scan?.page || '';
+    for (const group of doc.groups ?? []) {
+      const key = group.key || JSON.stringify([group.fileKind, group.identity?.selector, group.resource?.url]);
+      const incoming = {
+        ...group,
+        key,
+        pages: unique([...(group.pages ?? []), fallback].filter(Boolean)),
+      };
+      const prev = buckets.get(key);
+      buckets.set(key, prev ? mergeGroup(prev, incoming) : incoming);
+    }
+  }
+  const groups = [...buckets.values()];
+  const last = live[live.length - 1];
+  return {
+    scan: {
+      page: last.scan?.page || pages.at(-1)?.url || '',
+      pages,
+      generatedAt: new Date().toISOString(),
+      viewport: last.scan?.viewport ?? pages.at(-1)?.viewport ?? null,
+      dpr: last.scan?.dpr ?? pages.at(-1)?.dpr ?? null,
+      grid: last.scan?.grid ?? {
+        minWidth: GRID.minWidth,
+        maxWidth: GRID.maxWidth,
+        step: GRID.step,
+        densities: GRID.densities,
+      },
+    },
+    summary: summarize(groups, groups),
+    groups,
+  };
+}
+
+/** Report pages plus the current Pass (current URL replaces a stored snapshot). */
+export function documentForCopy(keptPages, current) {
+  const currentUrl = current.scan?.page || current.scan?.pages?.[0]?.url || '';
+  const others = keptPages
+    .filter((entry) => entry.url !== currentUrl)
+    .map((entry) => entry.doc);
+  return mergeAgentDocuments([...others, current]);
+}
+
 export const AGENT_PROMPT_PREAMBLE = `Implement the Picture Linter Agent document below in the repository that serves this page.
 
-Picture Linter inspected the page's images (\`<img>\`, \`<picture>\`, CSS \`background-image\`) across a viewport grid and grouped issues by root cause — not by DOM node.
+Picture Linter inspected the page's images (\`<img>\`, \`<picture>\`, CSS \`background-image\`) across a viewport grid and grouped issues by root cause — not by DOM node. The document may cover several pages from this tab's Report, plus the page you are on. Groups are merged across those pages.
 
 Rules:
 - Each \`##\` heading is one group (one template / one issue). \`instances\` is how many times it appears; fix the shared markup once.
@@ -53,9 +115,17 @@ export function toMarkdown(doc) {
     '',
     '## Scan',
     '',
-    `- Page: ${doc.scan.page}`,
     `- Generated: ${doc.scan.generatedAt}`,
   ];
+  const pages = pageEntries(doc);
+  if (pages.length) {
+    lines.push('- Pages:');
+    for (const page of pages) {
+      lines.push(page.title ? `  - ${page.url} — ${page.title}` : `  - ${page.url}`);
+    }
+  } else if (doc.scan.page) {
+    lines.push(`- Page: ${doc.scan.page}`);
+  }
   if (doc.scan.viewport) {
     lines.push(`- Viewport at dump: ${doc.scan.viewport.width}×${doc.scan.viewport.height} @${doc.scan.dpr || '?'}×`);
   }
@@ -90,6 +160,9 @@ export function toMarkdown(doc) {
     }
     if (group.identity.dataTest) lines.push(`data-test: ${group.identity.dataTest}`);
     if (group.identity.alt) lines.push(`alt: ${group.identity.alt}`);
+    if (group.pages?.length > 1) {
+      lines.push(`Pages: ${group.pages.join(', ')}`);
+    }
     lines.push('');
     lines.push('Resource:');
     lines.push(`- URL: ${group.resource.url}`);
@@ -141,6 +214,45 @@ export function toMarkdown(doc) {
     }
   }
   return lines.join('\n');
+}
+
+function summarize(tickets, allGroups) {
+  return {
+    uniqueIssues: tickets.filter((g) => g.verdict !== 'green' && g.verdict !== 'skip').length,
+    instances: tickets.reduce((sum, group) => sum + group.instances, 0),
+    wastedBytes: tickets.reduce((sum, group) => sum + (group.wastedBytes || 0), 0),
+    placeholders: allGroups.filter((g) => g.fileKind === 'placeholder').length,
+  };
+}
+
+function pageEntries(doc) {
+  if (doc.scan?.pages?.length) return doc.scan.pages;
+  if (doc.scan?.page) {
+    return [{
+      url: doc.scan.page,
+      title: doc.scan.title ?? '',
+      generatedAt: doc.scan.generatedAt,
+      viewport: doc.scan.viewport ?? null,
+      dpr: doc.scan.dpr ?? null,
+    }];
+  }
+  return [];
+}
+
+function mergeGroup(a, b) {
+  const base = isWorse(b.verdict, a.verdict) ? b : a;
+  return {
+    ...base,
+    key: a.key,
+    instances: a.instances + b.instances,
+    wastedBytes: (a.wastedBytes || 0) + (b.wastedBytes || 0),
+    verdict: worstSeverity([a.verdict, b.verdict]),
+    pages: unique([...(a.pages ?? []), ...(b.pages ?? [])]),
+  };
+}
+
+function unique(list) {
+  return [...new Set(list)];
 }
 
 function isTicket(group) {
@@ -208,6 +320,7 @@ function packGroup(results) {
     findings: first.findings.map(publicFinding),
     actions: first.actions.map(publicAction),
     snippet: subject.snippet,
+    key: groupKey(subject),
   };
 }
 

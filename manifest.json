@@ -12,9 +12,10 @@
     }
   },
   "background": {
-    "service_worker": "src/background.js"
+    "service_worker": "src/background.js",
+    "type": "module"
   },
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "storage"],
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
@@ -29,7 +30,8 @@
         "src/measure/*",
         "src/lint/*",
         "src/agent/*",
-        "src/ui/*"
+        "src/ui/*",
+        "src/report/*"
       ],
       "matches": ["<all_urls>"]
     }
