@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Picture Linter demo</title>
+  <style>
+    :root { font-family: Georgia, serif; background: #f4efe6; color: #1a1714; }
+    body { margin: 0 auto; max-width: 960px; padding: 32px 24px 80px; }
+    h1 { font-weight: 400; letter-spacing: 0.04em; text-transform: uppercase; font-size: 14px; }
+    .hero { width: 100%; height: auto; display: block; }
+    .card { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; }
+    .card img { width: 100%; height: auto; display: block; }
+    .hidden { display: none; }
+    .mega {
+      background: #222 url("./img/w1600.png") center / cover;
+      height: 160px;
+    }
+    details { margin-top: 32px; }
+    @media (max-width: 700px) {
+      .card { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Picture Linter fixture</h1>
+  <p>Load the unpacked extension, open this page, click the toolbar icon.</p>
+
+  <picture>
+    <source media="(min-width: 800px)" srcset="./img/w1600.png 1600w" sizes="100vw">
+    <img class="hero" alt="Hero with dishonest sizes"
+         src="./img/w800.png"
+         srcset="./img/w800.png 800w, ./img/w1600.png 1600w"
+         sizes="200px">
+  </picture>
+
+  <div class="card">
+    <img alt="Honest fixed image" src="./img/w400.png" width="400" height="200">
+    <img alt="Single huge bitmap" src="./img/w1600.png" style="width:200px;height:auto">
+  </div>
+
+  <img class="hidden" alt="Phantom display none" src="./img/w800.png">
+
+  <details>
+    <summary>Closed disclosure (phantom while closed)</summary>
+    <img alt="Inside closed details" src="./img/w400.png">
+  </details>
+
+  <p>Background cover:</p>
+  <div class="mega" role="img" aria-label="Wide background"></div>
+  <script type="module">
+    if (new URLSearchParams(location.search).has('pass')) {
+      const { startPass } = await import('../src/pass.js');
+      if (document.readyState === 'complete') startPass();
+      else window.addEventListener('load', () => startPass());
+    }
+  </script>
+</body>
+</html>

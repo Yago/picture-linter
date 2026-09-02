@@ -1,0 +1,3 @@
+# Verdict is the worst Finding on the Subject
+
+A Fit-only Overlay would paint green on a Phantom that happens to have an adequate bitmap. A score (% of widths OK) would recreate RespImageLint’s indigestible report. The Verdict is the worst Finding severity across the Pass (red > orange > skip > green). Green means no Finding at all. Thresholds on Fit stay loose (1.5× is still orange) so an honest stepped `srcset` is not punished. Phantoms without a painted box have no Overlay; they appear as red Findings in the Report. A Subject painted now but Phantom at another grid width is red on its current box.

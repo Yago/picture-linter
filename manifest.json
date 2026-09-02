@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Picture Linter",
+  "version": "0.1.0",
+  "description": "On-demand Pass: Verdict overlays, Sizes across a viewport grid, Phantoms, Agent document.",
+  "action": {
+    "default_title": "Run Picture Linter",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "permissions": ["activeTab", "scripting"],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/pass.js",
+        "src/domain/*",
+        "src/collect/*",
+        "src/measure/*",
+        "src/lint/*",
+        "src/agent/*",
+        "src/ui/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
