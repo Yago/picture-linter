@@ -55,6 +55,24 @@ export function declaredMaxWidth(candidates, url) {
   return Math.max(0, ...candidates.map((c) => c.width || 0), widthFromUrl(url));
 }
 
+export function sameResource(candidateUrl, resource) {
+  if (!candidateUrl || !resource) return false;
+  if (candidateUrl === resource) return true;
+  try {
+    const base = new URL(resource, 'https://pl.invalid');
+    const resolved = new URL(candidateUrl, base);
+    if (decodeURIComponent(resolved.pathname) !== decodeURIComponent(base.pathname)) return false;
+    if (!resolved.search || !base.search || resolved.search === base.search) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export function chosenCandidate(candidates, resource) {
+  return candidates.find((candidate) => sameResource(candidate.url, resource)) ?? null;
+}
+
 export function capCandidateWidths(needed, sourceMax, existingWidths) {
   const existing = new Set(existingWidths.filter(Boolean));
   const unique = [...new Set(needed.map((w) => Math.round(w)))].sort((a, b) => a - b);

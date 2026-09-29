@@ -223,6 +223,7 @@ test('source-short is out of theme scope', () => {
     subject: {
       resource: 'https://example.com/styles/lhc_avif_16_9_1080x608/public/x.avif',
       img: { srcset: 'x.avif 1080w', naturalWidth: 430, naturalHeight: 242 },
+      bitmap: 430,
       candidates: [{ url: 'https://example.com/styles/lhc_avif_16_9_1080x608/public/x.avif', width: 1080 }],
       sourceMax: 1080,
       styleHint: 'lhc_avif_16_9_1080x608',

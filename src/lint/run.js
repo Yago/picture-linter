@@ -1,10 +1,10 @@
-import { classifyScale, scaleOf, fitDirection } from '../domain/scale.js';
+import { classifyScale, scaleOf, fitDirection, fitPixels } from '../domain/scale.js';
 import { pickCandidate, parseSrcset } from '../domain/srcset.js';
 import { parseSizes, isSizesAuto, winningSize, computeLength, sizesMismatch, mediaMinMaxMatches } from '../domain/sizes.js';
 import { suggestSizes, capFluidSizes, isBareHundredVw } from '../domain/suggest-sizes.js';
 import { aggregateRanges, formatRange } from '../domain/ranges.js';
 import { worstSeverity } from '../domain/severity.js';
-import { capCandidateWidths, smallerCandidateRungs } from '../domain/resource.js';
+import { capCandidateWidths, smallerCandidateRungs, chosenCandidate } from '../domain/resource.js';
 import { GRID, parseViewportKey } from '../measure/grid.js';
 import { phantomReason, hiddenAncestor, isTiny } from '../collect/paint.js';
 import { cssSelector } from '../collect/locator.js';
@@ -217,9 +217,9 @@ function formatKb(bytes) {
 }
 
 function sourceShortFindings(subject) {
-  const decoded = subject.img?.naturalWidth || 0;
-  const chosen = subject.candidates.find((c) => c.url === subject.resource);
-  const declared = chosen?.width || Math.max(0, ...subject.candidates.map((c) => c.width || 0));
+  const decoded = subject.bitmap || 0;
+  const chosen = chosenCandidate(subject.candidates, subject.resource);
+  const declared = chosen?.width || 0;
   if (!decoded || !declared) return [];
   if (decoded >= declared * 0.9) return [];
   return [{
@@ -256,12 +256,20 @@ function currentFit(subject) {
   if (!subject.painted || subject.svg) return null;
   const layoutWidth = subject.painted.width;
   const density = window.devicePixelRatio || 1;
-  const intrinsic = subject.img?.naturalWidth
-    || subject.candidates.find((c) => c.url === subject.resource)?.width
-    || 0;
+  const intrinsic = resourcePixels(subject);
   if (!intrinsic) return null;
   const scale = scaleOf(intrinsic, layoutWidth, density);
   return { scale, severity: classifyScale(scale), have: intrinsic };
+}
+
+function resourcePixels(subject) {
+  const bitmap = subject.bitmap || 0;
+  const naturalWidth = subject.img?.naturalWidth || 0;
+  const chosen = chosenCandidate(subject.candidates, subject.resource);
+  if (chosen) return fitPixels(chosen, { resource: subject.resource, bitmap, naturalWidth });
+  if (bitmap > 0) return bitmap;
+  if (subject.candidates.some((candidate) => candidate.width != null)) return 0;
+  return naturalWidth;
 }
 
 function evaluateSizesPx(subject, layoutWidth, vw, vh) {
@@ -318,7 +326,11 @@ function candidateFindings(subject, dimensions) {
     for (const density of DENSITIES) {
       const need = layoutWidth * density;
       const picked = pickCandidate(subject.candidates, evaluateSizesPx(subject, layoutWidth, vw, vh) ?? layoutWidth, density);
-      const have = picked?.width ?? subject.img?.naturalWidth ?? 0;
+      const have = fitPixels(picked, {
+        resource: subject.resource,
+        bitmap: subject.bitmap || 0,
+        naturalWidth: subject.img?.naturalWidth || 0,
+      });
       if (!have) continue;
       const scale = have / need;
       const severity = classifyScale(scale);
@@ -352,7 +364,7 @@ function candidateFindings(subject, dimensions) {
 }
 
 function backgroundFitFindings(subject, dimensions) {
-  const natural = naturalFromCandidates(subject);
+  const natural = resourcePixels(subject);
   if (!natural) return [];
   const points = [];
   for (const [key, layoutWidth] of Object.entries(dimensions)) {
@@ -409,11 +421,6 @@ function groupAndAggregate(points, keyOf) {
   return [...groups.values()].flatMap((group) => aggregateRanges(group, () => true, GRID.step));
 }
 
-function naturalFromCandidates(subject) {
-  const match = subject.candidates.find((c) => c.url === subject.resource);
-  return match?.width || 0;
-}
-
 function isSprite(subject) {
   if (subject.kind !== 'background' || !subject.background) return false;
   const { position, size, repeat } = subject.background;
@@ -465,9 +472,8 @@ function actionsFrom(subject, findings, sizesSuggestion) {
   const have = existing.length
     ? existing
     : [subject.img?.naturalWidth, subject.sourceMax].filter(Boolean);
-  const decoded = subject.img?.naturalWidth || 0;
   const short = findings.find((f) => f.type === 'source-short');
-  const effectiveMax = short ? decoded : (subject.sourceMax || null);
+  const effectiveMax = short ? short.decoded : (subject.sourceMax || null);
 
   if (short) {
     actions.push({

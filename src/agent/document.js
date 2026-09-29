@@ -1,4 +1,4 @@
-import { groupKey, resourcePath, urlFamily, declaredMaxWidth } from '../domain/resource.js';
+import { groupKey, resourcePath, urlFamily, chosenCandidate } from '../domain/resource.js';
 import { worstSeverity, isWorse } from '../domain/severity.js';
 import { GRID } from '../measure/grid.js';
 
@@ -167,11 +167,12 @@ export function toMarkdown(doc) {
     lines.push('Resource:');
     lines.push(`- URL: ${group.resource.url}`);
     lines.push(`- Type: ${group.resource.mime} · ${group.resource.fileKind}`);
-    lines.push(`- Intrinsic: ${group.resource.naturalWidth}×${group.resource.naturalHeight}`);
+    const intrinsicWidth = group.resource.bitmap || group.resource.naturalWidth;
+    lines.push(`- Intrinsic: ${intrinsicWidth}×${group.resource.naturalHeight}`);
     lines.push(`- Source max: ${group.resource.sourceMax || '?'}w`);
-    if (group.resource.declaredMax && group.resource.naturalWidth
-      && group.resource.naturalWidth < group.resource.declaredMax * 0.9) {
-      lines.push(`- Declared: ${group.resource.declaredMax}w (descriptor/style) vs decoded ${group.resource.naturalWidth}w — theme cannot invent the missing pixels`);
+    if (group.resource.bitmap && group.resource.declaredWidth
+      && group.resource.bitmap < group.resource.declaredWidth * 0.9) {
+      lines.push(`- Declared: ${group.resource.declaredWidth}w (descriptor/style) vs decoded ${group.resource.bitmap}w — theme cannot invent the missing pixels`);
     }
     if (group.resource.bytes) lines.push(`- Transferred: ${formatBytes(group.resource.bytes)}`);
     if (group.resource.styleHint) lines.push(`- Style hint: \`${group.resource.styleHint}\``);
@@ -300,8 +301,9 @@ function packGroup(results) {
       fileKind: subject.fileKind || 'raster',
       naturalWidth: subject.img?.naturalWidth || 0,
       naturalHeight: subject.img?.naturalHeight || 0,
+      bitmap: subject.bitmap || 0,
       sourceMax: subject.sourceMax || 0,
-      declaredMax: declaredMaxWidth(subject.candidates ?? [], subject.resource),
+      declaredWidth: chosenCandidate(subject.candidates ?? [], subject.resource)?.width || 0,
       bytes: subject.bytes || 0,
       styleHint: subject.styleHint ?? null,
       srcset: srcsetList(subject),

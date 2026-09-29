@@ -1,4 +1,5 @@
-import { classifyScale, scaleOf, fitDirection } from '../src/domain/scale.js';
+import { classifyScale, scaleOf, fitDirection, fitPixels } from '../src/domain/scale.js';
+import { sameResource } from '../src/domain/resource.js';
 import { parseSrcset, pickCandidate } from '../src/domain/srcset.js';
 import { parseSizes, winningSize, sizesMismatch, computeLength, isSizesAuto, mediaMinMaxMatches } from '../src/domain/sizes.js';
 import { suggestSizes, capFluidSizes, isBareHundredVw } from '../src/domain/suggest-sizes.js';
@@ -22,6 +23,25 @@ test('classifyScale traffic lights', () => {
 test('scaleOf divides intrinsic by layout × density', () => {
   assert.equal(scaleOf(800, 400, 2), 1);
   assert.equal(scaleOf(400, 400, 1), 1);
+});
+
+test('fitPixels uses the Resource bitmap, else the w, else naturalWidth × x', () => {
+  const resource = 'https://example.com/files/photo.avif';
+  const loaded = { url: '/files/photo.avif', width: 1400 };
+  const other = { url: 'https://example.com/files/small.avif', width: 690 };
+  assert.equal(sameResource(loaded.url, resource), true);
+  assert.equal(fitPixels(loaded, { resource, bitmap: 0, naturalWidth: 676 }), 1400);
+  assert.equal(fitPixels(loaded, { resource, bitmap: 1400, naturalWidth: 676 }), 1400);
+  assert.equal(fitPixels(loaded, { resource, bitmap: 430, naturalWidth: 676 }), 430);
+  assert.equal(fitPixels(other, { resource, bitmap: 430, naturalWidth: 676 }), 690);
+  assert.equal(fitPixels(
+    { url: resource, density: 2 },
+    { resource, bitmap: 0, naturalWidth: 700 },
+  ), 1400);
+  assert.equal(fitPixels(
+    { url: 'https://example.com/files/other.avif', density: 3 },
+    { resource, bitmap: 0, naturalWidth: 700 },
+  ), 0);
 });
 
 test('parseSrcset w and x', () => {

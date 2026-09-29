@@ -139,8 +139,13 @@ function fromBackground(element, background) {
 function enrich(subject, host, img) {
   const identity = identityOf(host, img);
   const mime = mimeFromUrl(subject.resource, subject.sources.find((s) => s.type)?.type);
+  const bitmap = subject.kind === 'background'
+    ? (subject.img?.naturalWidth || 0)
+    : naturalWidthOf(subject.resource);
+  const hasW = subject.candidates.some((candidate) => candidate.width != null);
+  const intrinsic = bitmap || (hasW ? 0 : (subject.img?.naturalWidth || 0));
   const placeholder = isPlaceholderSignals({
-    naturalWidth: subject.img?.naturalWidth || 0,
+    naturalWidth: intrinsic,
     naturalHeight: subject.img?.naturalHeight || 0,
     className: `${host.className || ''} ${img?.className || ''}`,
     url: subject.resource,
@@ -154,8 +159,9 @@ function enrich(subject, host, img) {
     mime,
     fileKind: kind,
     placeholder,
+    bitmap,
     styleHint: styleHint(subject.resource),
-    sourceMax: sourceMaxWidth(subject.candidates, subject.img?.naturalWidth || 0, subject.resource),
+    sourceMax: sourceMaxWidth(subject.candidates, intrinsic, subject.resource),
     bytes: transferredBytes(subject.resource),
     selector: identity.selector || subject.selector,
   };

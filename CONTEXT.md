@@ -21,11 +21,11 @@ One entry in a `srcset` or CSS `image-set()`, with its width or density descript
 _Avoid_: Source (conflicts with `<source>`), variant
 
 **Fit**:
-How the loaded bitmap’s intrinsic pixels compare to the painted box × density: too large (waste), too small (blur), or adequate. Fit is measured per viewport. It is not the Overlay color.
-_Avoid_: Coverage, correct size, used correctly
+How the chosen Candidate’s pixels compare to the painted box × density: too large (waste), too small (blur), or adequate. The requested Resource uses its bitmap when that decode exists; otherwise a `w` descriptor, or the density-corrected width × `x`. Any other Candidate keeps its `w`. Fit is measured per viewport. It is not the Overlay color.
+_Avoid_: Coverage, correct size, used correctly, natural width (on a `w` Candidate this repeats Layout width once Sizes are honest)
 
 **Scale**:
-Intrinsic pixels ÷ (Layout width × Density). The number that classifies Fit (green 0.9–1.5×, orange 0.75–0.9 or 1.5–2×, red otherwise).
+Those Candidate pixels ÷ (Layout width × Density). The number that classifies Fit (green 0.9–1.5×, orange 0.75–0.9 or 1.5–2×, red otherwise).
 _Avoid_: Coverage, ratio, DPR (that’s Density)
 
 **Layout width**:
@@ -113,7 +113,7 @@ The utility class or attribute that prevents painting (`md:hidden`, `lg:hidden`,
 _Avoid_: display none (alone), css-hidden (alone)
 
 **Source max**:
-The largest `w` descriptor (or URL-encoded width) available. Candidates above this are invalid. When the decoded bitmap is smaller than the chosen descriptor (`source-short`), the theme cannot invent pixels — that is an image-style / original issue, not a `sizes` ticket.
+The largest `w` descriptor (or URL-encoded width) available. Candidates above this are invalid. When the Resource’s bitmap, decoded apart from the `srcset`, is under 90% of the chosen `w` (`source-short`), the theme cannot invent pixels — that is an image-style / original issue, not a Sizes ticket. The `<img>`’s density-corrected width is not that bitmap.
 _Avoid_: needed width (that can exceed Source max)
 
 **Undersized / Oversized**:
