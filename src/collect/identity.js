@@ -13,7 +13,6 @@ export function identityOf(element, img) {
     dataTest: firstData(host, ['data-test', 'data-testid', 'data-cy']),
     alt: node.getAttribute?.('alt') ?? '',
     ariaLabel: node.getAttribute?.('aria-label') || host.getAttribute('aria-label') || '',
-    ariaHidden: node.getAttribute?.('aria-hidden') === 'true' || host.getAttribute('aria-hidden') === 'true',
     component: guessComponent(host),
     selector: usefulSelector(host),
     artDirectionTwin: artDirectionTwin(host),

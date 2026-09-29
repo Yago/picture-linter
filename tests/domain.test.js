@@ -2,7 +2,7 @@ import { classifyScale, scaleOf, fitDirection } from '../src/domain/scale.js';
 import { parseSrcset, pickCandidate } from '../src/domain/srcset.js';
 import { parseSizes, winningSize, sizesMismatch, computeLength, isSizesAuto, mediaMinMaxMatches } from '../src/domain/sizes.js';
 import { suggestSizes, capFluidSizes, isBareHundredVw } from '../src/domain/suggest-sizes.js';
-import { aggregateRanges, formatRange } from '../src/domain/ranges.js';
+import { aggregateRanges, formatRange, parseRangeLabel, stripSegments } from '../src/domain/ranges.js';
 import { worstSeverity } from '../src/domain/severity.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -96,6 +96,28 @@ test('aggregateRanges collapses consecutive equal payloads', () => {
   assert.equal(ranges.length, 2);
   assert.equal(formatRange(ranges[0]), '320–360px');
   assert.equal(formatRange(ranges[1]), '640–660px');
+});
+
+test('parseRangeLabel reads aggregated viewport ranges', () => {
+  assert.deepEqual(parseRangeLabel('320–360px, 1200px'), [
+    { from: 320, to: 360 },
+    { from: 1200, to: 1200 },
+  ]);
+  assert.deepEqual(parseRangeLabel(''), []);
+  assert.deepEqual(parseRangeLabel('not a range'), []);
+});
+
+test('stripSegments places failing ranges on the viewport grid', () => {
+  const strip = stripSegments({
+    severity: 'red',
+    range: '300–570px, 3000px',
+  });
+  assert.equal(strip.severity, 'red');
+  assert.equal(strip.segments[0].left, 0);
+  assert.ok(Math.abs(strip.segments[0].width - (270 / 2700)) < 1e-9);
+  assert.ok(strip.segments[1].left + strip.segments[1].width <= 1);
+  assert.equal(stripSegments({ severity: 'red', summary: 'markup' }), null);
+  assert.equal(stripSegments({ severity: 'green', range: '400–800px' }), null);
 });
 
 test('verdict is worst finding', () => {

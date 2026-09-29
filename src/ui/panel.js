@@ -1,3 +1,5 @@
+import { escapeHtml, fileName } from './text.js';
+
 export function renderProgress(panel, ratio, label) {
   const pct = Math.round(ratio * 100);
   panel.innerHTML = `
@@ -30,11 +32,7 @@ export function renderReport(panel, view) {
   const counts = { red: 0, orange: 0, green: 0, skip: 0 };
   for (const result of results) counts[result.verdict] += 1;
   const phantoms = results.filter((r) => r.findings.some((f) => f.type === 'phantom'));
-  const visible = results.filter((r) => {
-    if (filter === 'all') return true;
-    if (filter === 'phantom') return r.findings.some((f) => f.type === 'phantom');
-    return r.verdict === filter;
-  });
+  const visible = results.filter((result) => matchesFilter(result, filter));
   const membership = report?.membership ?? 'add';
 
   panel.innerHTML = `
@@ -66,6 +64,12 @@ export function renderReport(panel, view) {
 
   panel.querySelectorAll('[data-id]').forEach((el) => {
     el.addEventListener('click', () => onSelect(el.getAttribute('data-id')));
+  });
+  panel.querySelectorAll('[data-explain]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      view.onExplain(button.getAttribute('data-explain'));
+    });
   });
   panel.querySelectorAll('.pl-counts button').forEach((button) => {
     button.addEventListener('click', () => {
@@ -168,6 +172,12 @@ function flashCopy(button, labels, ok) {
   copyTimers.set(button, timer);
 }
 
+export function matchesFilter(result, filter) {
+  if (filter === 'all') return true;
+  if (filter === 'phantom') return result.findings.some((finding) => finding.type === 'phantom');
+  return result.verdict === filter;
+}
+
 function countButton(tone, n, filter) {
   return `<button type="button" data-filter="${tone}" aria-pressed="${filter === tone}">
     <b data-tone="${tone}">${n}</b><span>${tone}</span>
@@ -181,7 +191,10 @@ function row(result, activeId) {
     <li class="pl-row" data-id="${result.subject.id}" data-verdict="${result.verdict}" data-active="${result.subject.id === activeId}">
       <div class="pl-row__meta">
         <span>${result.subject.kind}${result.findings.some((f) => f.type === 'phantom') ? ' · phantom' : ''}</span>
-        <span class="pl-row__verdict">${result.verdict}</span>
+        <span class="pl-row__end">
+          <span class="pl-row__verdict">${result.verdict}</span>
+          <button type="button" class="pl-info" data-explain="${escapeHtml(result.subject.id)}" aria-label="Explain this subject">ℹ</button>
+        </span>
       </div>
       <p class="pl-row__resource" title="${escapeHtml(result.subject.resource)}">${escapeHtml(name)}</p>
       ${findings ? `<ul class="pl-row__findings">${findings}</ul>` : ''}
@@ -189,20 +202,3 @@ function row(result, activeId) {
   `;
 }
 
-function fileName(url) {
-  if (!url) return '';
-  try {
-    const path = new URL(url, document.baseURI).pathname;
-    return path.split('/').filter(Boolean).pop() || url;
-  } catch {
-    return url;
-  }
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

@@ -12,10 +12,12 @@ export function collectSubjects(root = document) {
   walk(root, (element) => {
     if (element.hasAttribute?.('data-pl-root')) return 'skip';
     if (element.closest?.('[data-pl-root]')) return;
+    if (isAriaHidden(element)) return;
 
     if (element.tagName === 'PICTURE') {
       const img = element.querySelector('img');
       if (img) seenImgs.add(img);
+      if (img && isAriaHidden(img)) return;
       subjects.push(fromPicture(element, img));
       return;
     }
@@ -32,6 +34,25 @@ export function collectSubjects(root = document) {
     if (background) subjects.push(fromBackground(element, background));
   });
   return subjects.map((subject, index) => ({ ...subject, id: `pl-${index}` }));
+}
+
+export function isAriaHidden(element) {
+  let node = element;
+  while (node && node.nodeType === 1) {
+    if (node.getAttribute?.('aria-hidden') === 'true') return true;
+    if (node.parentElement) {
+      node = node.parentElement;
+      continue;
+    }
+    const root = node.getRootNode?.();
+    const host = root && root !== node ? root.host : null;
+    if (host && host !== node) {
+      node = host;
+      continue;
+    }
+    break;
+  }
+  return false;
 }
 
 function walk(root, visit) {
@@ -122,7 +143,6 @@ function enrich(subject, host, img) {
     naturalWidth: subject.img?.naturalWidth || 0,
     naturalHeight: subject.img?.naturalHeight || 0,
     className: `${host.className || ''} ${img?.className || ''}`,
-    ariaHidden: identity.ariaHidden,
     url: subject.resource,
     bytes: transferredBytes(subject.resource),
     paintedWidth: subject.painted?.width || 0,

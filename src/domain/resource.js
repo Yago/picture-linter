@@ -99,7 +99,6 @@ export function isPlaceholderSignals({
   naturalWidth = 0,
   naturalHeight = 0,
   className = '',
-  ariaHidden = false,
   url = '',
   bytes = 0,
   paintedWidth = 0,
@@ -112,7 +111,7 @@ export function isPlaceholderSignals({
   const urlTiny = tinyDimensionInUrl(url);
   const blur = /(?:^|\s)(?:blur(?:-sm|-md|-lg)?|lqip|placeholder|thumbhash|thumb-hash)(?:\s|$)/i.test(className);
   if (!tinyIntrinsic && !urlTiny) return false;
-  return blur || ariaHidden || (urlTiny && tinyIntrinsic);
+  return blur || (urlTiny && tinyIntrinsic);
 }
 
 function tinyDimensionInUrl(url) {

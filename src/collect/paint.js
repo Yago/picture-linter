@@ -51,17 +51,7 @@ export function wasRequested(url, element) {
 }
 
 export function phantomReason(element) {
-  const closed = element.closest('details:not([open])');
-  if (closed) return 'closed-disclosure';
-
-  const slide = element.closest('[aria-hidden="true"]');
-  if (slide) {
-    if (slide.getAttribute('role') === 'tabpanel' || slide.closest('[aria-roledescription="carousel"], .carousel, [data-carousel]')) {
-      return 'inactive-slide';
-    }
-    return 'closed-disclosure';
-  }
-
+  if (element.closest('details:not([open])')) return 'closed-disclosure';
   if (element.closest('[hidden]')) return 'closed-disclosure';
 
   const style = getComputedStyle(element);
@@ -76,7 +66,7 @@ export function phantomReason(element) {
 }
 
 export function hiddenAncestor(element) {
-  const closed = element.closest('details:not([open]), [hidden], [aria-hidden="true"]');
+  const closed = element.closest('details:not([open]), [hidden]');
   if (closed) return closed;
   let node = element;
   while (node && node.nodeType === 1) {

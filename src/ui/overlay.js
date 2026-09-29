@@ -1,4 +1,4 @@
-export function renderOverlays(layer, results, onSelect) {
+export function renderOverlays(layer, results, onSelect, onExplain) {
   layer.replaceChildren();
   const marks = [];
   for (const result of results) {
@@ -16,10 +16,15 @@ export function renderOverlays(layer, results, onSelect) {
       <span class="pl-crop pl-crop--bl"></span>
       <span class="pl-crop pl-crop--br"></span>
       <button type="button" class="pl-pip">${result.verdict}</button>
+      <button type="button" class="pl-info" aria-label="Explain this subject">ℹ</button>
     `;
-    mark.querySelector('.pl-pip').addEventListener('click', (event) => {
+    mark.addEventListener('click', (event) => {
       event.stopPropagation();
       onSelect(result.subject.id);
+    });
+    mark.querySelector('.pl-info').addEventListener('click', (event) => {
+      event.stopPropagation();
+      onExplain(result.subject.id);
     });
     layer.append(mark);
     marks.push({ mark, element: result.subject.element });

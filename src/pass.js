@@ -4,7 +4,8 @@ import { lintSubject } from './lint/run.js';
 import { toAgentDocument, toMarkdown, toAgentPrompt, documentForCopy } from './agent/document.js';
 import { mountHost, teardown } from './ui/host.js';
 import { renderOverlays, highlight } from './ui/overlay.js';
-import { renderProgress, renderReport } from './ui/panel.js';
+import { bindExplanation } from './ui/explanation.js';
+import { matchesFilter, renderProgress, renderReport } from './ui/panel.js';
 import { addToReport, fetchReport, removeFromReport, resetReport } from './report/client.js';
 
 let running = false;
@@ -24,9 +25,11 @@ export async function startPass() {
   let aborted = false;
   const ui = mountHost();
   const listeners = [];
+  let explanation = null;
   const close = () => {
     aborted = true;
     abortPass = null;
+    explanation?.disconnect();
     for (const { target, type, fn, options } of listeners) {
       target.removeEventListener(type, fn, options);
     }
@@ -73,12 +76,18 @@ export async function startPass() {
       return 'update';
     };
 
+    explanation = bindExplanation(ui.explain, {
+      resultOf: (id) => resultById(results, id),
+      repaint: () => paint(),
+    });
+
     const paint = () => {
       if (aborted) return;
       renderReport(ui.panel, {
         results,
         copies: copiesOf(reportPages),
-        onSelect: select,
+        onSelect: (id) => select(id),
+        onExplain: explanation.open,
         onFilter: (next) => {
           filter = next;
           paint();
@@ -112,16 +121,20 @@ export async function startPass() {
           },
         },
       });
+      explanation.render();
     };
 
-    const select = (id) => {
+    const select = (id, { reveal = false } = {}) => {
+      const result = resultById(results, id);
+      if (reveal && result && !matchesFilter(result, filter)) filter = 'all';
       activeId = id;
       highlight(ui.layer, id);
-      resultById(results, id)?.subject.element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      result?.subject.element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       paint();
+      scrollRowIntoView(ui.panel, id);
     };
 
-    const place = renderOverlays(ui.layer, results, select);
+    const place = renderOverlays(ui.layer, results, (id) => select(id, { reveal: true }), explanation.open);
     const onReflow = () => place();
     window.addEventListener('scroll', onReflow, true);
     window.addEventListener('resize', onReflow);
@@ -145,7 +158,17 @@ export async function startPass() {
 }
 
 function resultById(results, id) {
-  return results.find((r) => r.subject.id === id);
+  return results.find((result) => result.subject.id === id);
+}
+
+function scrollRowIntoView(panel, id) {
+  const row = panel.querySelector(`[data-id="${CSS.escape(id)}"]`);
+  const scroller = row?.closest('.pl-panel__body');
+  if (!row || !scroller) return;
+  const rowBox = row.getBoundingClientRect();
+  const box = scroller.getBoundingClientRect();
+  if (rowBox.top < box.top) scroller.scrollTop -= box.top - rowBox.top;
+  else if (rowBox.bottom > box.bottom) scroller.scrollTop += rowBox.bottom - box.bottom;
 }
 
 export { teardown };

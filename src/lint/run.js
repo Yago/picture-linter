@@ -174,7 +174,6 @@ function phantomFindings(subject, dimensions) {
 function explainClosed(element) {
   if (element.closest('details:not([open])')) return 'inside <details> that is not open';
   if (element.closest('[hidden]')) return 'ancestor has the hidden attribute';
-  if (element.closest('[aria-hidden="true"]')) return 'ancestor aria-hidden="true" (not a disclosure unless role/carousel)';
   return 'not painted after request';
 }
 

@@ -5,8 +5,12 @@ A Chrome extension that inspects the images a page actually requests, shows whet
 ## Language
 
 **Subject**:
-A page image under analysis: an `<img>`, a `<picture>`, or a CSS `background-image`.
+A page image under analysis: an `<img>`, a `<picture>`, or a CSS `background-image`. An Ignored image is not a Subject.
 _Avoid_: Picture, balise, image (alone)
+
+**Ignored**:
+An `<img>`, `<picture>`, or CSS background that has `aria-hidden="true"` on itself or an ancestor at Pass time. Not a Subject: no Overlay, no panel row, no Finding, no Group. No exception for carousels, closed dialogs, or a page marked `aria-hidden` behind an open modal.
+_Avoid_: hidden image, decorative, Phantom, Placeholder
 
 **Resource**:
 The URL the browser actually requested (`currentSrc`, or the computed CSS `url()` / `image-set()` winner).
@@ -41,8 +45,8 @@ Device pixel ratio, evaluated theoretically at 1× / 2× / 3× during a Pass. Ov
 _Avoid_: Screen type, retina
 
 **Phantom**:
-A Subject that triggered a network request but has no painted box (not rendered, zero size, or fully clipped from painting). Listed in the panel, never given an Overlay.
-_Avoid_: Hidden image, display none, unloaded (the opposite: never requested)
+A Subject that triggered a network request but has no painted box (not rendered, zero size, or fully clipped from painting). Listed in the panel, never given an Overlay. An Ignored image is not a Phantom, even when it was requested and not painted.
+_Avoid_: Hidden image, display none, unloaded (the opposite: never requested), Ignored
 
 **Sprite**:
 A CSS background whose bitmap is a sheet of many icons. Excluded from Fit (recorded as skipped, not red).
@@ -56,8 +60,20 @@ _Avoid_: Error, warning, problem, issue (alone)
 The worst Finding severity on a Subject across the whole Pass (red > orange > skip > green). Green only if there is no Finding.
 _Avoid_: Score, health, global Fit, “correctly implemented” (that phrase is the Verdict)
 
+**Explanation**:
+The blocking dialog for one Subject: kind, Verdict, Resource, then the HTML snippet (`<picture>`, `<img>`, or the background host), the Finding summaries already computed with a Range strip under each Finding that has one, and the Solution. Opened from the ℹ on its panel row or on its Overlay, and closed with ×, backdrop, or Escape. Opening it does not change the selected Subject. While it is open, the page, Overlays, and panel take no clicks.
+_Avoid_: detail, popover, tooltip, inline expand
+
+**Solution**:
+The single prescription for one Subject, shown last in its Explanation. A Phantom, broken markup, background, heavy SVG, or Placeholder is the strategy already computed, with no sizes value. Otherwise it is a source-short warning and, when they differ, the sizes value that matches Layout width across the Viewport grid, plus any missing Candidate widths. Nothing to prescribe: “No change.”
+_Avoid_: Action (those stay in the Agent document), fix list, per-range sizes
+
+**Range strip**:
+One bar of the Viewport grid (300–3000px) for a Finding that already has viewport ranges. Failing spans use that Finding’s severity; empty spans were not recorded as adequate, so they are not green. Candidates and background Fit get one bar per Density, and the two aspect ratios stay collapsed as in the summary.
+_Avoid_: resolution chart, breakpoint diagram, green Fit
+
 **Overlay**:
-A snapshot traffic-light on a painted Subject showing its Verdict. It does not update on resize; a new Pass is required. Clicking it opens that Subject in the panel.
+A snapshot traffic-light on a painted Subject showing its Verdict. It does not update on resize; a new Pass is required. Clicking anywhere on it selects that Subject in the panel: the row is marked active and scrolled into view, and a filter that hides the row is cleared. That click does not open the Explanation. The ℹ on the Overlay does.
 _Avoid_: Hoverlet, badge, highlight, Fit (the Overlay is not Fit)
 
 **Pass**:
@@ -81,8 +97,8 @@ The fixed dense widths used to measure Layout width in a clone iframe (300–300
 _Avoid_: Breakpoints (those belong to CSS), screen sizes, sampling
 
 **Placeholder**:
-A tiny LQIP / blur-up (`aria-hidden`, `blur-sm`, ~30×38) that is not a content image. Never a Phantom, never `add-candidates`. A painted content `<picture>` (intrinsic > 64px, more than a few KB, or a `NNNxNNN` style in the URL) is never a Placeholder — even if a substring of the filename looks tiny.
-_Avoid_: closed-disclosure (for LQIP), hidden image
+A tiny LQIP / blur-up (`blur-sm`, ~30×38) that is not a content image. Never a Phantom, never `add-candidates`. An image with `aria-hidden="true"` is Ignored, not a Placeholder. A painted content `<picture>` (intrinsic > 64px, more than a few KB, or a `NNNxNNN` style in the URL) is never a Placeholder — even if a substring of the filename looks tiny.
+_Avoid_: closed-disclosure (for LQIP), hidden image, Ignored
 
 **Vector**:
 An SVG Subject. Fit is intrinsic vs CSS box, not srcset. Never `add-candidates`. Light SVGs (under ~8 KB) are informational / skip — viewBox vs CSS box is not a theme ticket. Only heavy SVGs get `svg-oversized`.

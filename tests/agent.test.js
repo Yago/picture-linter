@@ -67,14 +67,19 @@ test('placeholder 30x38 blur-up is detected', () => {
     naturalWidth: 30,
     naturalHeight: 38,
     className: 'blur-sm absolute',
-    ariaHidden: true,
     url: 'https://x/30x38/lqip.jpg',
   }), true);
+  assert.equal(isPlaceholderSignals({
+    naturalWidth: 30,
+    naturalHeight: 38,
+    className: '',
+    ariaHidden: true,
+    url: 'https://x/thumb.jpg',
+  }), false);
   assert.equal(isPlaceholderSignals({
     naturalWidth: 800,
     naturalHeight: 600,
     className: '',
-    ariaHidden: false,
     url: 'https://x/hero.jpg',
   }), false);
 });
@@ -85,7 +90,6 @@ test('featured 2:1 content picture is never a placeholder', () => {
     naturalWidth: 1305,
     naturalHeight: 652,
     className: '',
-    ariaHidden: false,
     url,
     bytes: 49.5 * 1024,
     paintedWidth: 1490,
